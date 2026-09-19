@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>سیستم ثبت خرید موبایل</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#f4f7fb;color:#172033}
+header{background:linear-gradient(135deg,#1261d8,#3b82f6);color:#fff;padding:22px 16px 28px;border-radius:0 0 28px 28px;box-shadow:0 8px 25px #1261d826}
+header h1{margin:0;font-size:23px}
+header p{margin:7px 0 0;opacity:.9;font-size:13px}
+nav{display:flex;gap:8px;padding:12px;position:sticky;top:0;background:#f4f7fb;z-index:5}
+nav button{flex:1;border:0;border-radius:14px;padding:12px 8px;background:#fff;color:#334155;font-weight:bold;box-shadow:0 2px 10px #0000000d}
+nav button.active{background:#1261d8;color:#fff}
+main{max-width:900px;margin:auto;padding:0 12px 30px}
+.page{display:none}.page.active{display:block}
+.card{background:#fff;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 5px 20px #1720330b}
+.card h2{font-size:18px;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+label{font-size:13px;font-weight:bold;color:#475569;display:block;margin-bottom:6px}
+input{width:100%;padding:13px;border:1px solid #dbe3ef;border-radius:12px;outline:none;font-family:inherit;font-size:14px;background:#fbfdff}
+input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px #3b82f61a}
+.actions{display:flex;gap:10px;margin-top:15px}
+button.primary,button.secondary,button.danger{border:0;border-radius:12px;padding:12px 15px;font-family:inherit;font-weight:bold;cursor:pointer}
+button.primary{background:#1261d8;color:#fff;flex:1}
+button.secondary{background:#eaf1ff;color:#1261d8}
+button.danger{background:#fee2e2;color:#b91c1c}
+.status{padding:11px 13px;border-radius:12px;background:#eff6ff;color:#1d4ed8;font-size:13px;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:#fff;border-radius:16px;padding:15px;text-align:center;box-shadow:0 3px 14px #0000000a}
+.stat b{display:block;font-size:23px;color:#1261d8;margin-bottom:5px}.stat span{font-size:12px;color:#64748b}
+.search{margin-bottom:12px}
+.table-wrap{overflow:auto;border-radius:14px}
+table{width:100%;border-collapse:collapse;min-width:800px}
+th,td{padding:11px 8px;border-bottom:1px solid #eef2f7;text-align:right;font-size:12px;white-space:nowrap}
+th{background:#f8fafc;color:#475569}
+.empty{text-align:center;color:#94a3b8;padding:25px}
+.small{font-size:12px;color:#64748b;line-height:1.8}
+.settings-note{background:#fff7ed;color:#9a3412;border-radius:12px;padding:12px;font-size:12px;line-height:1.8}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}header h1{font-size:20px}.card{padding:15px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📱 سیستم ثبت خرید موبایل</h1>
+  <p>ثبت، جستجو و مدیریت آنلاین اطلاعات خرید</p>
+</header>
+
+<nav>
+  <button id="navHome" class="active" onclick="showPage('home')">🏠 صفحه اصلی</button>
+  <button id="navList" onclick="showPage('list')">📋 لیست خریدها</button>
+  <button id="navSettings" onclick="showPage('settings')">⚙️ تنظیمات</button>
+</nav>
+
+<main>
+<section id="home" class="page active">
+  <div class="card">
+    <h2>ثبت خرید جدید</h2>
+    <div id="status" class="status">در حال آماده‌سازی اتصال...</div>
+    <div class="grid">
+      <div><label>نام</label><input id="name" placeholder="نام مشتری"></div>
+      <div><label>نام موبایل</label><input id="mobile" placeholder="مثلاً Samsung A55"></div>
+      <div><label>نمبر تذکره</label><input id="tazkira" placeholder="نمبر تذکره"></div>
+      <div><label>شماره تماس</label><input id="phone" placeholder="شماره تماس"></div>
+      <div><label>IMEI</label><input id="imei" placeholder="IMEI موبایل"></div>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="saveRecord()">ثبت خرید</button>
+      <button class="secondary" onclick="clearForm()">پاک کردن</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="total">0</b><span>کل خریدها</span></div>
+    <div class="stat"><b id="today">0</b><span>امروز</span></div>
+    <div class="stat"><b id="month">0</b><span>این ماه</span></div>
+  </div>
+</section>
+
+<section id="list" class="page">
+  <div class="card">
+    <h2>📋 لیست خریدها</h2>
+    <input class="search" id="search" placeholder="جستجو در نام، موبایل، تذکره، تماس یا IMEI..." oninput="renderTable()">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>تاریخ خورشیدی</th><th>روز</th><th>نام</th><th>موبایل</th><th>تذکره</th><th>تماس</th><th>IMEI</th><th>عملیات</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="settings" class="page">
+  <div class="card">
+    <h2>⚙️ تنظیمات اتصال آنلاین</h2>
+    <div class="small">Project URL و Publishable Key خودتان را وارد کنید. این دو مقدار فقط در همین مرورگر ذخیره می‌شوند.</div>
+    <br>
+    <label>Supabase Project URL</label>
+    <input id="supabaseUrl" placeholder="https://xxxx.supabase.co">
+    <br><br>
+    <label>Supabase Publishable Key</label>
+    <input id="supabaseKey" placeholder="sb_publishable_...">
+    <div class="actions">
+      <button class="primary" onclick="saveSettings()">ذخیره و اتصال</button>
+      <button class="secondary" onclick="clearSettings()">پاک کردن تنظیمات</button>
+    </div>
+    <br>
+    <div class="settings-note">
+      برای کارکرد بدون رمز عبور از Anonymous Sign-in استفاده می‌شود. در Supabase باید ورود ناشناس فعال باشد.
+      <br>نکته امنیتی: چون این سیستم اطلاعات تذکره و تماس را نگهداری می‌کند، هر کسی که بتواند وارد سایت شود و به دیتابیس دسترسی بگیرد ممکن است این اطلاعات را ببیند؛ بنابراین لینک سایت را عمومی منتشر نکنید.
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+let client=null, records=[], editingId=null;
+
+const $=id=>document.getElementById(id);
+const savedUrl=localStorage.getItem('mobile_supabase_url')||'';
+const savedKey=localStorage.getItem('mobile_supabase_key')||'';
+$('supabaseUrl').value=savedUrl;
+$('supabaseKey').value=savedKey;
+
+function showPage(page){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  $(page).classList.add('active');
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  if(page==='home')$('navHome').classList.add('active');
+  if(page==='list')$('navList').classList.add('active');
+  if(page==='settings')$('navSettings').classList.add('active');
+  if(page==='list')loadRecords();
+}
+
+function setStatus(msg,error=false){
+  $('status').textContent=msg;
+  $('status').style.background=error?'#fef2f2':'#eff6ff';
+  $('status').style.color=error?'#b91c1c':'#1d4ed8';
+}
+
+async function connect(){
+  const url=localStorage.getItem('mobile_supabase_url')||'';
+  const key=localStorage.getItem('mobile_supabase_key')||'';
+  if(!url||!key){setStatus('ابتدا در بخش تنظیمات، اتصال Supabase را وارد کنید.',true);return false}
+  try{
+    client=window.supabase.createClient(url,key);
+    const {error}=await client.auth.signInAnonymously();
+    if(error)throw error;
+    setStatus('اتصال آنلاین برقرار است ✓');
+    await loadRecords();
+    return true;
+  }catch(e){
+    setStatus('خطای اتصال: '+e.message,true);
+    return false;
+  }
+}
+
+async function saveSettings(){
+  const url=$('supabaseUrl').value.trim(), key=$('supabaseKey').value.trim();
+  if(!url||!key){alert('Project URL و Publishable Key را وارد کنید.');return}
+  localStorage.setItem('mobile_supabase_url',url);
+  localStorage.setItem('mobile_supabase_key',key);
+  await connect();
+}
+
+function clearSettings(){
+  localStorage.removeItem('mobile_supabase_url');
+  localStorage.removeItem('mobile_supabase_key');
+  $('supabaseUrl').value='';$('supabaseKey').value='';
+  client=null;records=[];
+  setStatus('تنظیمات پاک شد.',true);
+  renderTable();updateStats();
+}
+
+async function loadRecords(){
+  if(!client)return;
+  const {data,error}=await client.from('mobile_records').select('*').order('created_at',{ascending:false});
+  if(error){setStatus('خطا در دریافت لیست: '+error.message,true);return}
+  records=data||[]; renderTable(); updateStats();
+}
+
+async function saveRecord(){
+  if(!client){alert('ابتدا اتصال آنلاین را در تنظیمات برقرار کنید.');return}
+  const payload={
+    name:$('name').value.trim(),
+    mobile:$('mobile').value.trim(),
+    tazkira:$('tazkira').value.trim(),
+    phone:$('phone').value.trim(),
+    imei:$('imei').value.trim()
+  };
+  if(!payload.name && !payload.mobile && !payload.imei){alert('حداقل نام، نام موبایل یا IMEI را وارد کنید.');return}
+  let res;
+  if(editingId) res=await client.from('mobile_records').update(payload).eq('id',editingId);
+  else res=await client.from('mobile_records').insert(payload);
+  if(res.error){alert('خطا: '+res.error.message);return}
+  editingId=null;clearForm();await loadRecords();
+  setStatus('اطلاعات با موفقیت ذخیره شد ✓');
+}
+
+function clearForm(){
+  ['name','mobile','tazkira','phone','imei'].forEach(id=>$(id).value='');
+  editingId=null;
+}
+
+function editRecord(id){
+  const r=records.find(x=>x.id===id);if(!r)return;
+  editingId=id;
+  $('name').value=r.name||'';$('mobile').value=r.mobile||'';$('tazkira').value=r.tazkira||'';
+  $('phone').value=r.phone||'';$('imei').value=r.imei||'';
+  showPage('home');setStatus('در حال ویرایش این رکورد هستید.');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function deleteRecord(id){
+  if(!confirm('این رکورد حذف شود؟'))return;
+  if(!client)return;
+  const {error}=await client.from('mobile_records').delete().eq('id',id);
+  if(error){alert('خطا: '+error.message);return}
+  await loadRecords();
+}
+
+function jalaliDate(value){
+  try{
+    const d=new Date(value);
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian',{
+      timeZone:'Asia/Kabul',year:'numeric',month:'2-digit',day:'2-digit'
+    }).format(d).replaceAll('٬','/');
+  }catch(e){return new Date(value).toLocaleDateString('fa-AF')}
+}
+function weekday(value){
+  try{return new Intl.DateTimeFormat('fa-AF',{timeZone:'Asia/Kabul',weekday:'long'}).format(new Date(value))}
+  catch(e){return ''}
+}
+function kabulKey(value){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kabul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+}
+function kabulMonth(value){
+  const p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Kabul',year:'numeric',month:'2-digit'}).formatToParts(new Date(value));
+  return p.find(x=>x.type==='year').value+'-'+p.find(x=>x.type==='month').value;
+}
+
+function renderTable(){
+  const q=($('search').value||'').trim().toLowerCase();
+  const filtered=records.filter(r=>[r.name,r.mobile,r.tazkira,r.phone,r.imei].some(v=>(v||'').toLowerCase().includes(q)));
+  $('tbody').innerHTML=filtered.length?filtered.map(r=>`
+    <tr>
+      <td>${esc(jalaliDate(r.created_at))}</td>
+      <td>${esc(weekday(r.created_at))}</td>
+      <td>${esc(r.name)}</td><td>${esc(r.mobile)}</td><td>${esc(r.tazkira)}</td>
+      <td>${esc(r.phone)}</td><td>${esc(r.imei)}</td>
+      <td>
+        <button class="secondary" onclick="editRecord('${r.id}')">ویرایش</button>
+        <button class="danger" onclick="deleteRecord('${r.id}')">حذف</button>
+      </td>
+    </tr>`).join(''):`<tr><td colspan="8" class="empty">رکوردی پیدا نشد.</td></tr>`;
+}
+function esc(v){
+  return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;");
+}
+function updateStats(){
+  const today=kabulKey(new Date()), month=kabulMonth(new Date());
+  $('total').textContent=records.length;
+  $('today').textContent=records.filter(r=>kabulKey(r.created_at)===today).length;
+  $('month').textContent=records.filter(r=>kabulMonth(r.created_at)===month).length;
+}
+
+$('search').addEventListener('input',renderTable);
+connect();
+</script>
+</body>
+</html>
